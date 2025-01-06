@@ -59,7 +59,7 @@ class DepartmentFIFO(Department):
         while True:
             client = yield self.queue.get()
 
-            consultant = yield self._get_available_consultant()
+            consultant = yield from self._get_available_consultant()
 
             if consultant:
                 self.env.process(consultant._handle_call(client, self.env.now - client.arrival_time))
@@ -74,7 +74,7 @@ class DepartmentIS(Department):
 
     def _process_clients(self, client):
         """Directly handle the client or reroute/remove them."""
-        consultant = self._get_available_consultant()
+        consultant = yield from self._get_available_consultant()
 
         if consultant:
             self.env.process(self._simulate_processing(client, consultant))
@@ -111,7 +111,7 @@ class DepartmentLIFOPR(Department):
                 self.queue.items.sort(key=lambda c: c.priority, reverse=True)  # sort by priority
                 client = self.queue.items.pop()
 
-                consultant = yield self._get_available_consultant()
+                consultant = yield from self._get_available_consultant()
 
                 if consultant: 
                     self.env.process(
@@ -195,7 +195,7 @@ class Route:
 
         if current_department == 'fifo':
             probabilities = self.fifo_propabilites.get(client.issue_type)
-            if client.issue_type == 'normal': 
+            if client.issue_type == 'normal':
                 outcomes = ['convert_to_complicated', 'convert_to_medium', 'quit_system']
                 action = random.choices(outcomes, weights=probabilities, k=1)[0]
                 self._process_action(client, action)
@@ -207,7 +207,7 @@ class Route:
                 outcomes = ['stay_complicated', 'convert_to_medium']
                 action = random.choices(outcomes, weights=probabilities, k=1)[0]
                 self._process_action(client, action)
-        
+
         elif current_department == 'is':
             probabilities = self.is_propabilites.get(client.issue_type)
             outcomes = ['convert_to_complicated', 'convert_to_normal', 'quit_system']
@@ -219,7 +219,10 @@ class Route:
             outcomes = ['convert_to_medium', 'quit_system']
             action = random.choices(outcomes, weights=probabilities, k=1)[0]
             self._process_action(client, action)
-    
+
+        # Add a small timeout to make this function a generator
+        yield self.fifo_department.env.timeout(0)
+
     def _process_action(self, client, action):
         """Process the selected action based on probabilities."""
         if action == 'convert_to_complicated':
