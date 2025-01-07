@@ -1,4 +1,3 @@
-from datetime import datetime
 import simpy as sp
 import numpy as np
 import random
@@ -50,55 +49,6 @@ class Department:
                     return consultant
             yield self.env.timeout(0.1)  # small delay between checks
 
-class DepartmentPS(Department):
-    """Department with PS (Processor Sharring) processing."""
-    def __init__(self, env, name):
-        super().__init__(env, name)
-        self.active_clients = []
-
-    def _generate_cox_time(self, client):
-        """Generate service time using Cox distribution."""
-        cox_params = self.processing_time[client.issue_type]
-        phases = cox_params['phases']
-        rates = cox_params['rates']
-        weights = cox_params['weights']
-
-        phase = np.random.choice(phases, p=weights)
-        return np.random.exponential(1 / rates[phase])
-
-    def _process_clients(self):
-        """Process clients using Processor Sharing."""
-        while True:
-            if self.active_clients:
-                total_clients = len(self.active_clients)
-                time_slice = 1.0 / total_clients
-
-                for client in self.active_clients[:]:
-                    consultant = yield from self._get_available_consultant()
-
-                    if consultant:
-                        remaining_service_time = self._generate_cox_time(client)
-                        allocated_time = min(time_slice, remaining_service_time)
-
-                        consultant.busy = True
-                        yield self.env.timeout(allocated_time)
-                        remaining_service_time -= allocated_time
-
-                        if remaining_service_time <= 0:
-                            self.active_clients.remove(client)
-                            self.env.process(self.route._route_client(client))
-
-                        
-
-                        consultant.busy = False
-
-            yield self.env.timeout(0.1)  # Małe opóźnienie między iteracjami
-
-    def _add_client(self, client):
-        """Add a client to the department for processing."""
-        client.current_department = self.department_name
-        self.active_clients.append(client)
-
 class DepartmentFIFO(Department):
     """Department with FIFO (First In, First Out) processing."""
     def __init__(self, env, name):
@@ -116,6 +66,38 @@ class DepartmentFIFO(Department):
                 self.env.process(self.route._route_client(client))  # reroute client after processing
             else:
                 print(f"No available consultant for {client.client_name}, please wait.")
+
+class DepartmentIS(Department):
+    """Department with Immediate Service (IS) processing."""
+    def __init__(self, env, name):
+        super().__init__(env, name)
+
+    def _process_clients(self, client):
+        """Directly handle the client or reroute/remove them."""
+        consultant = yield from self._get_available_consultant()
+
+        if consultant:
+            self.env.process(self._simulate_processing(client, consultant))
+        else:
+            print(f"No consultant available for Client {client.client_id} in {self.department_name}. Deciding next step...")
+            self._reroute_or_remove_client(client)
+
+    def _simulate_processing(self, client, consultant):
+        """Simulate processing of a client by a consultant."""
+        consultant.busy = True
+        service_time = np.random.exponential(1 / self.processing_time[client.issue_type])
+        print(
+            f"{client.client_name} is being processed by {consultant.consultant_name} "
+            f"in {self.department_name} with service time {service_time:.2f}."
+        )
+        yield self.env.timeout(service_time)
+        consultant.busy = False
+        print(f"{client.client_name} finished processing by {consultant.consultant_name}.")
+
+    def _reroute_or_remove_client(self, client):
+        """Reroute the client or remove them from the system using the Route class."""
+        action = 'stay_medium'
+        self.route._process_action(client, action) # trying to be serviced by is department
 
 class DepartmentLIFOPR(Department):
     """Department with lifo with priorities."""
@@ -180,19 +162,19 @@ class Consultant:
         self.time_on_breaks += self.break_duration
 
 class Route:
-    def __init__(self, ps_department, fifo_department, lifopr_department):
-        self.ps_department = ps_department
+    def __init__(self, fifo_department, is_department, lifopr_department):
         self.fifo_department = fifo_department
+        self.is_department = is_department
         self.lifopr_department = lifopr_department
 
-        self.ps_propabilites = {}
         self.fifo_propabilites = {}
+        self.is_propabilites = {}
         self.lifopr_propabilites = {}
 
-    def _fill_propabilities(self, ps_prop, fifo_prop, lifopr_prop):
+    def _fill_propabilities(self, fifo_prop, is_prop, lifopr_prop):
         """Filling propabilites for routes in the system."""
-        self.ps_propabilites = ps_prop
         self.fifo_propabilites = fifo_prop
+        self.is_propabilites = is_prop
         self.lifopr_propabilites = lifopr_prop
 
     def _first_arrival(self, client):
@@ -204,15 +186,15 @@ class Route:
         elif client.issue_type == 'normal':
             client.priority = 1
 
-        client.current_department = self.ps_department.department_name
-        self.ps_department._add_client(client)
+        client.current_department = self.fifo_department.department_name
+        self.fifo_department._add_client(client)
 
     def _route_client(self, client):
         """Reroute clients based on their issue type and current department."""
         current_department = client.current_department
 
-        if current_department == 'ps':
-            probabilities = self.ps_propabilites.get(client.issue_type)
+        if current_department == 'fifo':
+            probabilities = self.fifo_propabilites.get(client.issue_type)
             if client.issue_type == 'normal':
                 outcomes = ['convert_to_complicated', 'convert_to_medium', 'quit_system']
                 action = random.choices(outcomes, weights=probabilities, k=1)[0]
@@ -226,8 +208,8 @@ class Route:
                 action = random.choices(outcomes, weights=probabilities, k=1)[0]
                 self._process_action(client, action)
 
-        elif current_department == 'fifo':
-                probabilities = self.fifo_propabilites.get(client.issue_type)
+        elif current_department == 'is':
+                probabilities = self.is_propabilites.get(client.issue_type)
                 outcomes = ['convert_to_complicated', 'convert_to_normal', 'quit_system']
                 action = random.choices(outcomes, weights=probabilities, k=1)[0]
                 self._process_action(client, action)
@@ -239,9 +221,7 @@ class Route:
             self._process_action(client, action)
 
         # Add a small timeout to make this function a generator
-        yield self.ps_department.env.timeout(0)
         yield self.fifo_department.env.timeout(0)
-        yield self.lifopr_department.env.timeout(0)
 
     def _process_action(self, client, action):
         """Process the selected action based on probabilities."""
@@ -252,18 +232,18 @@ class Route:
         elif action == 'convert_to_medium':
             client.issue_type = 'medium'
             client.priority += 5
-            self.fifo_department._add_client(client)
+            self.is_department._process_clients(client)
         elif action == 'convert_to_normal':
             client.priority += 5
             client.issue_type = 'normal'
-            self.ps_department._add_client(client)
+            self.fifo_department._add_client(client)
         elif action == 'stay_complicated':
             self.lifopr_department._add_client(client)
         elif action == 'stay_medium':
             client.issue_type = 'medium'
-            self.fifo_department._add_client(client)
+            self.is_department._process_clients(client)
         elif action == 'quit_system':
-            print(f"Client {client.client_id} processed succesfully!")
+            print("Client processed succesfully!") #TODO there should be sth more about it, like tracking overall time of client in the server
 
 def client_arrival(env, client_id, arrival_rate, route, logging=False):
     """Simulate client arrival and routing."""
