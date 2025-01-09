@@ -265,7 +265,7 @@ class Route:
         elif action == 'quit_system':
             print(f"Client {client.client_id} processed succesfully!")
 
-def client_arrival(env, client_id, arrival_rate, route, logging=False):
+def client_arrival(env, client_id, route, logging=False):
     """Simulate client arrival and routing."""
     issue_types = ['normal', 'medium', 'complicated']
     issue_type = random.choice(issue_types)
@@ -275,4 +275,14 @@ def client_arrival(env, client_id, arrival_rate, route, logging=False):
         print(f"Client {client_id} arrives with a {issue_type} issue at time {env.now:.2f}.")
 
     route._first_arrival(client)
-    yield env.timeout(arrival_rate)
+
+    yield env.timeout(0)
+
+def generate_clients(env, num_clients, arrival_rate, route, logging=False):
+    """Generate clients over time based on arrival rate."""
+    for client_id in range(1, num_clients + 1):
+        env.process(client_arrival(env, client_id, route, logging=logging))
+        yield env.timeout(arrival_rate)
+
+
+

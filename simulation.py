@@ -93,7 +93,6 @@ env.process(ps_department._process_clients())
 env.process(fifo_department._process_clients())
 env.process(lifopr_department._process_clients())
 
-for client_did in range(1, NUM_CLIENTS+1): 
-    env.process(client_arrival(env, client_did, ARRIVAL_RATE, route, logging=True))
-
-env.run() # run simulation
+# Adjust simulation setup
+env.process(generate_clients(env, NUM_CLIENTS, ARRIVAL_RATE, route, logging=True))
+env.run()
