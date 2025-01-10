@@ -63,36 +63,40 @@ NUM_CLIENTS = 20
 ARRIVAL_RATE = 2 # lambda aka arrival rate in system
 
 # simulation
-env = sp.Environment()
+def run_simulation(ps_pt, fifo_pt, lifopr_pt, ps_co, fifo_co, lifopr_co, ps_prob, fifo_prob, lifopr_prob, clients, arrival_rate):
+    env = sp.Environment()
 
-# creating departments
-ps_department = DepartmentPS(env, 'ps') #covers only medium issues
-fifo_department = DepartmentFIFO(env, 'fifo') #covers only normal issues and every other at start
-lifopr_department = DepartmentLIFOPR(env, 'lifopr') #covers only complicated issues
+    # creating departments
+    ps_department = DepartmentPS(env, 'ps') #covers only medium issues
+    fifo_department = DepartmentFIFO(env, 'fifo') #covers only normal issues and every other at start
+    lifopr_department = DepartmentLIFOPR(env, 'lifopr') #covers only complicated issues
 
-# filling mu in departments
-ps_department._fill_processing_time(PS_PROCESSING_TIME)
-fifo_department._fill_processing_time(FIFO_PROCESSING_TIME)
-lifopr_department._fill_processing_time(LIFOPR_PROCESSING_TIME)
+    # filling mu in departments
+    ps_department._fill_processing_time(ps_pt)
+    fifo_department._fill_processing_time(fifo_pt)
+    lifopr_department._fill_processing_time(lifopr_pt)
 
-# adding consultant
-ps_department._create_consultants(PS_CONSULTANTS)
-fifo_department._create_consultants(FIFO_CONSULTANTS)
-lifopr_department._create_consultants(LIFOPR_CONSULTANTS)
+    # adding consultant
+    ps_department._create_consultants(ps_co)
+    fifo_department._create_consultants(fifo_co)
+    lifopr_department._create_consultants(lifopr_co)
 
-# creating routes
-route = Route(ps_department, fifo_department, lifopr_department)
+    # creating routes
+    route = Route(ps_department, fifo_department, lifopr_department)
 
-route._fill_propabilities(PS_PROPABILITIES, FIFO_PROPABILITIES, LIFOPR_PROPABILITIES)
+    route._fill_propabilities(ps_prob, fifo_prob, lifopr_prob)
 
-ps_department._init_route(route)
-fifo_department._init_route(route)
-lifopr_department._init_route(route)
+    ps_department._init_route(route)
+    fifo_department._init_route(route)
+    lifopr_department._init_route(route)
 
-env.process(ps_department._process_clients())
-env.process(fifo_department._process_clients())
-env.process(lifopr_department._process_clients())
+    env.process(ps_department._process_clients())
+    env.process(fifo_department._process_clients())
+    env.process(lifopr_department._process_clients())
 
-# Adjust simulation setup
-env.process(generate_clients(env, NUM_CLIENTS, ARRIVAL_RATE, route, logging=True))
-env.run()
+    # Adjust simulation setup
+    env.process(generate_clients(env, clients, arrival_rate, route, logging=True))
+    env.run()
+
+
+# run_simulation(PS_PROCESSING_TIME, FIFO_PROCESSING_TIME, LIFOPR_PROCESSING_TIME, PS_CONSULTANTS, FIFO_CONSULTANTS, LIFOPR_CONSULTANTS, PS_PROPABILITIES, FIFO_PROPABILITIES, LIFOPR_PROPABILITIES, NUM_CLIENTS, ARRIVAL_RATE)
