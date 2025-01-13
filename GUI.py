@@ -3,6 +3,7 @@ from tkinter import ttk
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from simulation import run_simulation
+from theoretical_funcitions import compute_state_probabilities
 
 # Main application window
 root = tk.Tk()
@@ -219,6 +220,43 @@ ax.set_title("Wyniki symulacji")
 canvas = FigureCanvasTkAgg(fig, master=fig_frame)
 canvas_widget = canvas.get_tk_widget()
 canvas_widget.pack(fill=tk.BOTH, expand=True)
+
+# Panel wyników
+results_frame = tk.Frame(root)
+results_frame.pack(side=tk.RIGHT, fill=tk.BOTH, padx=10, pady=10)
+
+tk.Label(results_frame, text="Wyniki Symulacji", font=("Arial", 14)).pack(anchor=tk.N)
+
+# Add a text box for probabilities in the right-side panel
+probabilities_text = tk.Text(root, height=20, width=50)
+probabilities_text.pack(side=tk.RIGHT, padx=10, pady=10)
+
+def update_probabilities():
+    # Extract parameters from GUI inputs
+    arrival_rates = [float(arrival_rate.get())]
+    service_rates = [
+        float(ps_processing_time['normal'].get().split(',')[0]),
+        float(fifo_processing_time['normal'].get()),
+        float(lifopr_processing_time['normal'].get())
+    ]
+    num_servers = [ps_consultants.get(), fifo_consultants.get(), lifopr_consultants.get()]
+    max_clients = num_clients.get()
+
+    # Compute probabilities
+    probabilities = compute_state_probabilities(arrival_rates, service_rates, num_servers, max_clients)
+
+    # Display probabilities in the text box
+    probabilities_text.delete(1.0, tk.END)
+    probabilities_text.insert(tk.END, "\n".join(probabilities))
+
+
+# Wywołanie aktualizacji przy starcie
+update_probabilities()
+
+# Śledzenie zmian w polach
+for var in [arrival_rate, ps_processing_time['normal'], fifo_processing_time['normal'], lifopr_processing_time['normal']]:
+    var.trace_add('write', lambda *args: update_results())
+
 
 # Run the application
 root.mainloop()
