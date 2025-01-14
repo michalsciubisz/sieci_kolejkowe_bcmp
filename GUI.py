@@ -3,9 +3,9 @@ from tkinter import ttk
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from simulation import run_simulation
-from theoretical_funcitions import compute_state_probabilities
-from trials import compute_propability_of_state
+from propability_function import compute_propability_of_state
 
+ps_processing_time_values = {}
 # Main application window
 root = tk.Tk()
 root.title("Symulacja Sieci Kolejkowej BCMP")
@@ -91,7 +91,7 @@ processing_time_section.pack(fill=tk.X)
 
 # PS Processing Time
 tk.Label(processing_time_section.content, text="PS_PROCESSING_TIME (normal/medium/complicated):").pack(anchor=tk.W)
-ps_processing_time = {
+ps_processing_time = { #TODO to jest zakładam do zmiany przez zmiane tych procsessing time prawdopodobieństwie
     "normal": tk.StringVar(value="0.8, 0.2"),
     "medium": tk.StringVar(value="0.2, 0.5, 0.3"),
     "complicated": tk.StringVar(value="0.1, 0.2, 0.3, 0.4")
@@ -103,9 +103,7 @@ for key, var in ps_processing_time.items():
 # FIFO Processing Time
 tk.Label(processing_time_section.content, text="FIFO_PROCESSING_TIME (normal/medium/complicated):").pack(anchor=tk.W)
 fifo_processing_time = {
-    "normal": tk.DoubleVar(value=0.2),
-    "medium": tk.DoubleVar(value=0.5),
-    "complicated": tk.DoubleVar(value=1.0)
+    "medium": tk.DoubleVar(value=0.05)
 }
 for key, var in fifo_processing_time.items():
     tk.Label(processing_time_section.content, text=f"{key.capitalize()}:").pack(anchor=tk.W)
@@ -114,9 +112,7 @@ for key, var in fifo_processing_time.items():
 # LIFO Processing Time
 tk.Label(processing_time_section.content, text="LIFO_PROCESSING_TIME (normal/medium/complicated):").pack(anchor=tk.W)
 lifopr_processing_time = {
-    "normal": tk.DoubleVar(value=1.0),
-    "medium": tk.DoubleVar(value=0.5),
-    "complicated": tk.DoubleVar(value=0.2)
+    "complicated": tk.DoubleVar(value=0.0227)
 }
 for key, var in lifopr_processing_time.items():
     tk.Label(processing_time_section.content, text=f"{key.capitalize()}:").pack(anchor=tk.W)
@@ -141,16 +137,36 @@ def parse_string_var_to_list(string_var, value_type=float):
     """Convert a comma-separated string in a StringVar to a list of values."""
     return [value_type(v.strip()) for v in string_var.get().split(',')]
 
-def handle_simulation():
-    # PS Processing Time
-    ps_processing_time_values = {
-        key: {
-            "phases": list(range(len(parse_string_var_to_list(var)))),  # Generate phases dynamically
-            "rates": parse_string_var_to_list(var),
-            "weights": parse_string_var_to_list(ps_processing_time[key])  # Assumes matching weights input
+#TODO wyświetlanie w GUI, to raczej powinno być na sztywno w sensie phases, rates, weights w gui
+ps_processing_time_values = {
+        'normal': {
+            'phases': [0, 1],
+            'rates': [0.035, 0.1],
+            'weights': [0.8, 0.2]
+        },
+        'medium': {
+        'phases': [0, 1, 2],
+        'rates': [0.018, 0.036, 0.054], 
+        'weights': [0.2, 0.5, 0.3]
+        },
+        'complicated': {
+            'phases': [0, 1, 2, 3],
+            'rates': [0.008, 0.016, 0.024, 0.032], 
+            'weights': [0.1, 0.2, 0.3, 0.4]
         }
-        for key, var in ps_processing_time.items()
     }
+
+def handle_simulation():
+    #TODO to pytanie czy ma być, skoro tamto jest podawane na sztywno, być może tak to już pozostawiam na razie
+    # PS Processing Time
+    # ps_processing_time_values = {
+    #     key: {
+    #         "phases": list(range(len(parse_string_var_to_list(var)))),  # Generate phases dynamically
+    #         "rates": parse_string_var_to_list(var),
+    #         "weights": parse_string_var_to_list(ps_processing_time[key])  # Assumes matching weights input
+    #     }
+    #     for key, var in ps_processing_time.items()
+    # }
 
     # FIFO Processing Time
     fifo_processing_time_values = {
@@ -233,25 +249,12 @@ probabilities_text = tk.Text(root, height=20, width=50)
 probabilities_text.pack(side=tk.RIGHT, padx=10, pady=10)
 
 def update_probabilities():
-    # Extract parameters from GUI inputs
+
+    #TODO Add user given entry
+    state = (2,0,0)
+
     arrival_rates = [float(arrival_rate.get())]
-    # service_rates = [
-    #     float(ps_processing_time['normal'].get().split(',')[0]),
-    #     float(fifo_processing_time['normal'].get()),
-    #     float(lifopr_processing_time['normal'].get())
-    # ]
-    num_servers = [ps_consultants.get(), fifo_consultants.get(), lifopr_consultants.get()]
-    max_clients = num_clients.get()
-
-    # Compute probabilities
-    # probabilities = compute_state_probabilities(arrival_rates, service_rates, num_servers, max_clients)
-
-    given_state = (0, 0, 0)
-
     service_rates = [
-        float(ps_processing_time['normal'].get().split(',')[0]),
-        float(ps_processing_time['medium'].get().split(',')[0]),
-        float(ps_processing_time['complicated'].get().split(',')[0]),
         float(fifo_processing_time['medium'].get()),
         float(lifopr_processing_time['complicated'].get())
     ]
@@ -267,27 +270,21 @@ def update_probabilities():
     ps_values_comp = [float(x.strip()) for x in ps_values_comp.split(",")]
     fifo_values = [float(x.strip()) for x in fifo_values.split(",")]
     lifopr_values = [float(x.strip()) for x in lifopr_values.split(",")]
+
     
-    states = [(0, 0, 0), (0, 0, 1), (0, 1, 0), (1, 0, 0), (0, 1, 1), (1, 0, 1), (1, 1, 0), (1, 1, 1), (0, 0, 2), (0, 2, 0), (2, 0, 0), (2, 1, 0), (2, 0, 1), (1, 2, 0), (0, 2, 0), (0, 1, 2), (1, 0, 2)]
-    suma = 0
-
-    for state in states:
-
-        probabilities = compute_propability_of_state(ps_values, ps_values_medium, ps_values_comp, fifo_values, lifopr_values, service_rates, arrival_rates, state)
-
-        print(state, probabilities)
-        suma += probabilities
-    print(f"Suma: {suma}")
+    #TODO fill user entry as "state" variable
+    propability = compute_propability_of_state(ps_values, ps_values_medium, ps_values_comp, fifo_values, lifopr_values, service_rates, arrival_rates, state, ps_processing_time_values)
+    print(propability)
     # # Display probabilities in the text box
     # probabilities_text.delete(1.0, tk.END)
     # probabilities_text.insert(tk.END, "\n".join(probabilities))
 
 
 # Wywołanie aktualizacji przy starcie
-update_probabilities()
+update_probabilities() #TODO opened as button clicked
 
 # Śledzenie zmian w polach
-for var in [arrival_rate, ps_processing_time['normal'], fifo_processing_time['normal'], lifopr_processing_time['normal']]:
+for var in [arrival_rate, ps_processing_time['normal'], fifo_processing_time['medium'], lifopr_processing_time['complicated']]:
     var.trace_add('write', lambda *args: update_results())
 
 

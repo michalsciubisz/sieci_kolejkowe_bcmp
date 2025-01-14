@@ -3,36 +3,28 @@ from network import *
 
 # Adjustable parameters
 PS_PROCESSING_TIME = {
-    'normal': {
-    'phases': [0, 1],
-    'rates': [4.0, 2.0],  # Faza 0 jest szybsza
-    'weights': [0.8, 0.2]  # 80% czasu weryfikacja, 20% rozwiązanie problemu
-    },
-
-    'medium': {
-    'phases': [0, 1, 2],
-    'rates': [3.0, 1.5, 1.0],  # Szybkość obsługi maleje w późniejszych fazach
-    'weights': [0.2, 0.5, 0.3]  # 50% czasu analiza, 20% weryfikacja, 30% rozwiązanie
-    },
-
-    'complicated': {
-    'phases': [0, 1, 2, 3],
-    'rates': [2.5, 1.2, 0.8, 0.5],  # Szybkość obsługi maleje wraz z fazą
-    'weights': [0.1, 0.2, 0.3, 0.4]  # Najwięcej czasu spędza na rozwiązaniu problemu
+        'normal': {
+            'phases': [0, 1],
+            'rates': [0.035, 0.1],
+            'weights': [0.8, 0.2]
+        },
+        'medium': {
+        'phases': [0, 1, 2],
+        'rates': [0.018, 0.036, 0.054], 
+        'weights': [0.2, 0.5, 0.3]
+        },
+        'complicated': {
+            'phases': [0, 1, 2, 3],
+            'rates': [0.008, 0.016, 0.024, 0.032], 
+            'weights': [0.1, 0.2, 0.3, 0.4]
+        }
     }
-}
 
 FIFO_PROCESSING_TIME = {
             'normal'        : 0.2,
             'medium'        : 0.5,
             'complicated'   : 1
         }
-
-# IS_PROCESSING_TIME = {
-#             'normal'        : 0.5,
-#             'medium'        : 0.5,
-#             'complicated'   : 0.5
-#         }
 
 LIFOPR_PROCESSING_TIME = {
             'normal'        : 1,

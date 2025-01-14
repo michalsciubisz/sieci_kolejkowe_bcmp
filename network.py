@@ -11,6 +11,7 @@ class Client:
         self.arrival_time = arrival_time # env.now()
         self.current_department = None # keeping track of current department
         self.priority = priority # in range 0 to inf, at start max value 10 for complicated cases increase with each convertion of class
+        self.issue_history = []
 
 class Department: 
     def __init__(self, env, name):
@@ -247,15 +248,18 @@ class Route:
         """Process the selected action based on probabilities."""
         if action == 'convert_to_complicated':
             client.issue_type = 'complicated'
+            client.issue_history.append('complicated') #keep track of client visits
             client.priority += 5 # increasing priority for tickets being longer in system in case they end up in lifopr
             self.lifopr_department._add_client(client)
         elif action == 'convert_to_medium':
             client.issue_type = 'medium'
+            client.issue_history.append('medium')
             client.priority += 5
             self.fifo_department._add_client(client)
         elif action == 'convert_to_normal':
             client.priority += 5
             client.issue_type = 'normal'
+            client.issue_history.append('normal')
             self.ps_department._add_client(client)
         elif action == 'stay_complicated':
             self.lifopr_department._add_client(client)
@@ -263,13 +267,14 @@ class Route:
             client.issue_type = 'medium'
             self.fifo_department._add_client(client)
         elif action == 'quit_system':
-            print(f"Client {client.client_id} processed succesfully!")
+            print(f"Client {client.client_id} processed succesfully! Client history: {client.issue_history}")
 
 def client_arrival(env, client_id, route, logging=False):
     """Simulate client arrival and routing."""
     issue_types = ['normal', 'medium', 'complicated']
     issue_type = random.choice(issue_types)
     client = Client(client_id, issue_type, env.now)
+    client.issue_history.append(issue_type)
 
     if logging:
         print(f"Client {client_id} arrives with a {issue_type} issue at time {env.now:.2f}.")
