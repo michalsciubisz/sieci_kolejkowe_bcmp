@@ -4,6 +4,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from simulation import run_simulation
 from theoretical_funcitions import compute_state_probabilities
+from trials import compute_propability_of_state
 
 # Main application window
 root = tk.Tk()
@@ -234,20 +235,52 @@ probabilities_text.pack(side=tk.RIGHT, padx=10, pady=10)
 def update_probabilities():
     # Extract parameters from GUI inputs
     arrival_rates = [float(arrival_rate.get())]
-    service_rates = [
-        float(ps_processing_time['normal'].get().split(',')[0]),
-        float(fifo_processing_time['normal'].get()),
-        float(lifopr_processing_time['normal'].get())
-    ]
+    # service_rates = [
+    #     float(ps_processing_time['normal'].get().split(',')[0]),
+    #     float(fifo_processing_time['normal'].get()),
+    #     float(lifopr_processing_time['normal'].get())
+    # ]
     num_servers = [ps_consultants.get(), fifo_consultants.get(), lifopr_consultants.get()]
     max_clients = num_clients.get()
 
     # Compute probabilities
-    probabilities = compute_state_probabilities(arrival_rates, service_rates, num_servers, max_clients)
+    # probabilities = compute_state_probabilities(arrival_rates, service_rates, num_servers, max_clients)
 
-    # Display probabilities in the text box
-    probabilities_text.delete(1.0, tk.END)
-    probabilities_text.insert(tk.END, "\n".join(probabilities))
+    given_state = (0, 0, 0)
+
+    service_rates = [
+        float(ps_processing_time['normal'].get().split(',')[0]),
+        float(ps_processing_time['medium'].get().split(',')[0]),
+        float(ps_processing_time['complicated'].get().split(',')[0]),
+        float(fifo_processing_time['medium'].get()),
+        float(lifopr_processing_time['complicated'].get())
+    ]
+
+    ps_values = ps_probability["normal"].get()  
+    ps_values_medium = ps_probability["medium"].get() 
+    ps_values_comp = ps_probability["complicated"].get()  
+    fifo_values = fifo_probability["medium"].get()
+    lifopr_values = lifopr_probability["complicated"].get()
+
+    ps_values = [float(x.strip()) for x in ps_values.split(",")]
+    ps_values_medium = [float(x.strip()) for x in ps_values_medium.split(",")]
+    ps_values_comp = [float(x.strip()) for x in ps_values_comp.split(",")]
+    fifo_values = [float(x.strip()) for x in fifo_values.split(",")]
+    lifopr_values = [float(x.strip()) for x in lifopr_values.split(",")]
+    
+    states = [(0, 0, 0), (0, 0, 1), (0, 1, 0), (1, 0, 0), (0, 1, 1), (1, 0, 1), (1, 1, 0), (1, 1, 1), (0, 0, 2), (0, 2, 0), (2, 0, 0), (2, 1, 0), (2, 0, 1), (1, 2, 0), (0, 2, 0), (0, 1, 2), (1, 0, 2)]
+    suma = 0
+
+    for state in states:
+
+        probabilities = compute_propability_of_state(ps_values, ps_values_medium, ps_values_comp, fifo_values, lifopr_values, service_rates, arrival_rates, state)
+
+        print(state, probabilities)
+        suma += probabilities
+    print(f"Suma: {suma}")
+    # # Display probabilities in the text box
+    # probabilities_text.delete(1.0, tk.END)
+    # probabilities_text.insert(tk.END, "\n".join(probabilities))
 
 
 # Wywołanie aktualizacji przy starcie
