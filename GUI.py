@@ -244,48 +244,66 @@ results_frame.pack(side=tk.RIGHT, fill=tk.BOTH, padx=10, pady=10)
 
 tk.Label(results_frame, text="Wyniki Symulacji", font=("Arial", 14)).pack(anchor=tk.N)
 
-# Add a text box for probabilities in the right-side panel
-probabilities_text = tk.Text(root, height=20, width=50)
-probabilities_text.pack(side=tk.RIGHT, padx=10, pady=10)
+# Add Section for Probability Computation
+probability_section = tk.Frame(params_frame)
+probability_section.pack(fill=tk.X, pady=10)
 
-def update_probabilities():
+tk.Label(probability_section, text="Oblicz Prawdopodobieństwo Stanu", font=("Arial", 12, "bold")).pack(anchor=tk.W)
 
-    #TODO Add user given entry
-    state = (2,0,0)
+# State Input Fields
+state_frame = tk.Frame(probability_section)
+state_frame.pack(fill=tk.X, pady=5)
 
-    arrival_rates = [float(arrival_rate.get())]
-    service_rates = [
-        float(fifo_processing_time['medium'].get()),
-        float(lifopr_processing_time['complicated'].get())
-    ]
+tk.Label(state_frame, text="Stan (PS, FIFO, LIFO):").pack(side=tk.LEFT)
 
-    ps_values = ps_probability["normal"].get()  
-    ps_values_medium = ps_probability["medium"].get() 
-    ps_values_comp = ps_probability["complicated"].get()  
-    fifo_values = fifo_probability["medium"].get()
-    lifopr_values = lifopr_probability["complicated"].get()
+state_ps = tk.IntVar(value=0)
+state_fifo = tk.IntVar(value=0)
+state_lifo = tk.IntVar(value=0)
 
-    ps_values = [float(x.strip()) for x in ps_values.split(",")]
-    ps_values_medium = [float(x.strip()) for x in ps_values_medium.split(",")]
-    ps_values_comp = [float(x.strip()) for x in ps_values_comp.split(",")]
-    fifo_values = [float(x.strip()) for x in fifo_values.split(",")]
-    lifopr_values = [float(x.strip()) for x in lifopr_values.split(",")]
+tk.Entry(state_frame, textvariable=state_ps, width=5).pack(side=tk.LEFT, padx=2)
+tk.Entry(state_frame, textvariable=state_fifo, width=5).pack(side=tk.LEFT, padx=2)
+tk.Entry(state_frame, textvariable=state_lifo, width=5).pack(side=tk.LEFT, padx=2)
 
-    
-    #TODO fill user entry as "state" variable
-    propability = compute_propability_of_state(ps_values, ps_values_medium, ps_values_comp, fifo_values, lifopr_values, service_rates, arrival_rates, state, ps_processing_time_values)
-    print(propability)
-    # # Display probabilities in the text box
-    # probabilities_text.delete(1.0, tk.END)
-    # probabilities_text.insert(tk.END, "\n".join(probabilities))
+# Result Label
+probability_result = tk.StringVar(value="Prawdopodobieństwo: N/A")
+tk.Label(probability_section, textvariable=probability_result, font=("Arial", 10)).pack(anchor=tk.W)
+
+# Probability Computation Function
+def compute_probability():
+    state = (state_ps.get(), state_fifo.get(), state_lifo.get())
+
+    try:
+        # Collect parameters for computation
+        arrival_rates = [float(arrival_rate.get())]
+        service_rates = [
+            float(fifo_processing_time['medium'].get()),
+            float(lifopr_processing_time['complicated'].get())
+        ]
+
+        ps_values = [float(x.strip()) for x in ps_probability["normal"].get().split(",")]
+        ps_values_medium = [float(x.strip()) for x in ps_probability["medium"].get().split(",")]
+        ps_values_comp = [float(x.strip()) for x in ps_probability["complicated"].get().split(",")]
+        fifo_values = [float(x.strip()) for x in fifo_probability["medium"].get().split(",")]
+        lifopr_values = [float(x.strip()) for x in lifopr_probability["complicated"].get().split(",")]
+
+        # Compute probability
+        probability = compute_propability_of_state(
+            ps_values, ps_values_medium, ps_values_comp,
+            fifo_values, lifopr_values,
+            service_rates, arrival_rates,
+            state, ps_processing_time_values
+        )
+
+        probability_result.set(f"Prawdopodobieństwo: {probability:.6f}")
+    except Exception as e:
+        probability_result.set(f"Error: {e}")
+
+# Add Button to Trigger Probability Computation
+tk.Button(probability_section, text="Oblicz Prawdopodobieństwo", command=compute_probability).pack(pady=5)
 
 
 # Wywołanie aktualizacji przy starcie
-update_probabilities() #TODO opened as button clicked
-
-# Śledzenie zmian w polach
-for var in [arrival_rate, ps_processing_time['normal'], fifo_processing_time['medium'], lifopr_processing_time['complicated']]:
-    var.trace_add('write', lambda *args: update_results())
+compute_probability() #TODO opened as button clicked
 
 
 # Run the application
