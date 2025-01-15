@@ -85,38 +85,55 @@ for key, var in lifopr_probability.items():
     tk.Label(lifo_probs_section.content, text=f"{key.capitalize()} Probabilities:").pack(anchor=tk.W)
     tk.Entry(lifo_probs_section.content, textvariable=var).pack(fill=tk.X)
 
-# Processing Times Section
-processing_time_section = CollapsibleSection(params_frame, "Processing Times")
-processing_time_section.pack(fill=tk.X)
+# PS Processing Time Section
+ps_processing_time_section = CollapsibleSection(params_frame, "PS Processing Time")
+ps_processing_time_section.pack(fill=tk.X)
 
-# PS Processing Time
-tk.Label(processing_time_section.content, text="PS_PROCESSING_TIME (normal/medium/complicated):").pack(anchor=tk.W)
-ps_processing_time = { #TODO to jest zakładam do zmiany przez zmiane tych procsessing time prawdopodobieństwie
+# PS Processing Time - Rates
+tk.Label(ps_processing_time_section.content, text="PS_PROCESSING_TIME - Rates:").pack(anchor=tk.W)
+ps_processing_time_rates = {
+    "normal": tk.StringVar(value="0.035, 0.1"),
+    "medium": tk.StringVar(value="0.018, 0.036, 0.054"),
+    "complicated": tk.StringVar(value="0.008, 0.016, 0.024, 0.032")
+}
+for key, var in ps_processing_time_rates.items():
+    tk.Label(ps_processing_time_section.content, text=f"{key.capitalize()} Rates:").pack(anchor=tk.W)
+    tk.Entry(ps_processing_time_section.content, textvariable=var).pack(fill=tk.X)
+
+# PS Processing Time - Weights
+tk.Label(ps_processing_time_section.content, text="PS_PROCESSING_TIME - Weights:").pack(anchor=tk.W)
+ps_processing_time_weights = {
     "normal": tk.StringVar(value="0.8, 0.2"),
     "medium": tk.StringVar(value="0.2, 0.5, 0.3"),
     "complicated": tk.StringVar(value="0.1, 0.2, 0.3, 0.4")
 }
-for key, var in ps_processing_time.items():
-    tk.Label(processing_time_section.content, text=f"{key.capitalize()} Weights:").pack(anchor=tk.W)
-    tk.Entry(processing_time_section.content, textvariable=var).pack(fill=tk.X)
+for key, var in ps_processing_time_weights.items():
+    tk.Label(ps_processing_time_section.content, text=f"{key.capitalize()} Weights:").pack(anchor=tk.W)
+    tk.Entry(ps_processing_time_section.content, textvariable=var).pack(fill=tk.X)
 
-# FIFO Processing Time
-tk.Label(processing_time_section.content, text="FIFO_PROCESSING_TIME (normal/medium/complicated):").pack(anchor=tk.W)
+# FIFO Processing Time Section
+fifo_processing_time_section = CollapsibleSection(params_frame, "FIFO Processing Time")
+fifo_processing_time_section.pack(fill=tk.X)
+
+tk.Label(fifo_processing_time_section.content, text="FIFO_PROCESSING_TIME:").pack(anchor=tk.W)
 fifo_processing_time = {
-    "medium": tk.DoubleVar(value=0.05)
+    "medium": tk.StringVar(value="0.05")
 }
 for key, var in fifo_processing_time.items():
-    tk.Label(processing_time_section.content, text=f"{key.capitalize()}:").pack(anchor=tk.W)
-    tk.Entry(processing_time_section.content, textvariable=var).pack(fill=tk.X)
+    tk.Label(fifo_processing_time_section.content, text=f"{key.capitalize()}:").pack(anchor=tk.W)
+    tk.Entry(fifo_processing_time_section.content, textvariable=var).pack(fill=tk.X)
 
-# LIFO Processing Time
-tk.Label(processing_time_section.content, text="LIFO_PROCESSING_TIME (normal/medium/complicated):").pack(anchor=tk.W)
+# LIFO Processing Time Section
+lifopr_processing_time_section = CollapsibleSection(params_frame, "LIFO Processing Time")
+lifopr_processing_time_section.pack(fill=tk.X)
+
+tk.Label(lifopr_processing_time_section.content, text="LIFO_PROCESSING_TIME:").pack(anchor=tk.W)
 lifopr_processing_time = {
-    "complicated": tk.DoubleVar(value=0.0227)
+    "complicated": tk.StringVar(value="0.0227")
 }
 for key, var in lifopr_processing_time.items():
-    tk.Label(processing_time_section.content, text=f"{key.capitalize()}:").pack(anchor=tk.W)
-    tk.Entry(processing_time_section.content, textvariable=var).pack(fill=tk.X)
+    tk.Label(lifopr_processing_time_section.content, text=f"{key.capitalize()}:").pack(anchor=tk.W)
+    tk.Entry(lifopr_processing_time_section.content, textvariable=var).pack(fill=tk.X)
 
 # Consultants Section
 consultants_section = CollapsibleSection(params_frame, "Consultants")
@@ -146,37 +163,35 @@ ps_processing_time_values = {
         },
         'medium': {
         'phases': [0, 1, 2],
-        'rates': [0.018, 0.036, 0.054], 
+        'rates': [0.018, 0.036, 0.054],
         'weights': [0.2, 0.5, 0.3]
         },
         'complicated': {
             'phases': [0, 1, 2, 3],
-            'rates': [0.008, 0.016, 0.024, 0.032], 
+            'rates': [0.008, 0.016, 0.024, 0.032],
             'weights': [0.1, 0.2, 0.3, 0.4]
         }
     }
 
 def handle_simulation():
-    #TODO to pytanie czy ma być, skoro tamto jest podawane na sztywno, być może tak to już pozostawiam na razie
-    # PS Processing Time
-    # ps_processing_time_values = {
-    #     key: {
-    #         "phases": list(range(len(parse_string_var_to_list(var)))),  # Generate phases dynamically
-    #         "rates": parse_string_var_to_list(var),
-    #         "weights": parse_string_var_to_list(ps_processing_time[key])  # Assumes matching weights input
-    #     }
-    #     for key, var in ps_processing_time.items()
-    # }
+    ps_processing_time_values = {
+        key: {
+            "phases": list(range(len(parse_string_var_to_list(ps_processing_time_rates[key])))),
+            "rates": parse_string_var_to_list(ps_processing_time_rates[key]),
+            "weights": parse_string_var_to_list(ps_processing_time_weights[key])
+        }
+        for key in ps_processing_time_rates
+    }
 
     # FIFO Processing Time
     fifo_processing_time_values = {
-        key: fifo_processing_time[key].get()
+        key: float(fifo_processing_time[key].get())
         for key in fifo_processing_time
     }
 
     # LIFO Processing Time
     lifopr_processing_time_values = {
-        key: lifopr_processing_time[key].get()
+        key: float(lifopr_processing_time[key].get())
         for key in lifopr_processing_time
     }
 
@@ -201,26 +216,21 @@ def handle_simulation():
     # Collect other parameters
     num_clients_value = num_clients.get()
     arrival_rate_value = arrival_rate.get()
-    consultants_values = {
-        "PS": ps_consultants.get(),
-        "FIFO": fifo_consultants.get(),
-        "LIFO": lifopr_consultants.get()
-    }
 
     try:
         run_simulation(
-            ps_processing_time_values,
-            fifo_processing_time_values,
-            lifopr_processing_time_values,
-            ps_consultants.get(),
-            fifo_consultants.get(),
-            lifopr_consultants.get(),
-            ps_probabilities_values,
-            fifo_probabilities_values,
-            lifopr_probabilities_values,
-            num_clients_value,
-            arrival_rate_value
-        )
+                ps_processing_time_values,
+                fifo_processing_time_values,
+                lifopr_processing_time_values,
+                ps_consultants.get(),
+                fifo_consultants.get(),
+                lifopr_consultants.get(),
+                ps_probabilities_values,
+                fifo_probabilities_values,
+                lifopr_probabilities_values,
+                num_clients_value,
+                arrival_rate_value
+            )
     except Exception as e:
         print(f"Simulation Error: {e}")
 
@@ -279,6 +289,13 @@ def compute_probability():
             float(fifo_processing_time['medium'].get()),
             float(lifopr_processing_time['complicated'].get())
         ]
+        ps_processing_time_values = {
+            key: {
+                "phases": list(range(len(parse_string_var_to_list(ps_processing_time_rates[key])))),
+                "rates": parse_string_var_to_list(ps_processing_time_rates[key]),
+                "weights": parse_string_var_to_list(ps_processing_time_weights[key])
+            }
+            for key in ps_processing_time_rates}
 
         ps_values = [float(x.strip()) for x in ps_probability["normal"].get().split(",")]
         ps_values_medium = [float(x.strip()) for x in ps_probability["medium"].get().split(",")]
@@ -294,7 +311,7 @@ def compute_probability():
             state, ps_processing_time_values
         )
 
-        probability_result.set(f"Prawdopodobieństwo: {probability:.6f}")
+        probability_result.set(f"Prawdopodobieństwo: {probability:.12f}")
     except Exception as e:
         probability_result.set(f"Error: {e}")
 
@@ -303,7 +320,7 @@ tk.Button(probability_section, text="Oblicz Prawdopodobieństwo", command=comput
 
 
 # Wywołanie aktualizacji przy starcie
-compute_probability() #TODO opened as button clicked
+compute_probability()
 
 
 # Run the application
