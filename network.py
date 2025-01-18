@@ -111,8 +111,8 @@ class DepartmentPS(Department):
 
                         if remaining_service_time <= 0:
                             self.active_clients.remove(client)
-                            print(f"{client.client_name} processed  by PS in {self.env.now - client.last_wait} seconds")
-                            client.last_wait = 0
+                            print(f"{client.client_name} processed  by PS in {self.env.now - client.last_wait} seconds.")
+                            client.last_wait = self.env.now
                             self.env.process(self.route._route_client(client))
                             self._register_processed_clients()
                             self._register_queue_change()
@@ -191,12 +191,12 @@ class Consultant:
         service_time = np.random.exponential(1 / self.processing_time[client.issue_type])
         wait_time = self.env.now - client.last_wait
         client.wait_times.append(wait_time)
-        client.last_wait = self.env.now
         if self.loggs:
             print(f"{self.department}: {self.consultant_name} is handling {client.client_name} for {service_time:.2f} seconds "
-                  f"(Wait time: {wait_time:.2f} seconds)")
+                  f"(Wait time: {wait_time:.2f} seconds). curr time {self.env.now}")
 
         yield self.env.timeout(service_time)
+        client.last_wait = self.env.now
         self.time_on_calls += service_time
         self.time_on_previous_call = service_time
         self._take_break()
