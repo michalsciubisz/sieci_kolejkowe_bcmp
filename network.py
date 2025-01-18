@@ -3,7 +3,16 @@ import simpy as sp
 import numpy as np
 import random
 
-class Client: 
+
+class Results:
+    def __init__(self):
+        self.queue_size = [0]
+        self.queue_change_time = [0]
+        self.processed_clients = [0]
+        self.processed_clients_time = [0]
+
+
+class Client:
     def __init__(self, client_id, issue_type, arrival_time, priority=0):
         self.client_id = client_id
         self.client_name = f"Client {client_id}"
@@ -12,16 +21,22 @@ class Client:
         self.current_department = None # keeping track of current department
         self.priority = priority # in range 0 to inf, at start max value 10 for complicated cases increase with each convertion of class
         self.issue_history = []
+        self.last_wait = arrival_time
+        self.wait_times = []
 
-class Department: 
+
+class Department:
     def __init__(self, env, name):
         self.env = env
         self.department_name = name
 
-        self.queue = sp.Store(env) # created for each department not used by IS
+        self.queue = sp.Store(env)  # Created for each department, not used by IS
         self.processing_time = {}  # {'issue_type': mu_value}
         self.consultants = []
         self.route = None
+
+        # Data tracking
+        self.results = Results()
 
     def _fill_processing_time(self, process_time_dict):
         """Initialize processing times for different issue types."""
@@ -33,7 +48,7 @@ class Department:
 
     def _create_consultants(self, number_of_consultants):
         """Create consultants for the department."""
-        for idx in range(1, number_of_consultants+1):
+        for idx in range(1, number_of_consultants + 1):
             consultant_name = f"Consultant {idx}"
             consultant = Consultant(self.env, consultant_name, self.department_name, self.processing_time)
             self.consultants.append(consultant)
@@ -42,6 +57,7 @@ class Department:
         """Add a client to the department queue."""
         client.current_department = self.department_name
         self.queue.put(client)
+        self._register_queue_change()
 
     def _get_available_consultant(self):
         """Find the first available consultant."""
@@ -49,7 +65,15 @@ class Department:
             for consultant in self.consultants:
                 if not consultant.busy:
                     return consultant
-            yield self.env.timeout(0.1)  # small delay between checks
+            yield self.env.timeout(0.1)  # Small delay between checks
+
+    def _register_processed_clients(self):
+        self.results.processed_clients.append(len(self.results.processed_clients) + 1)  # Track queue size
+        self.results.processed_clients_time.append(self.env.now)
+
+    def _register_queue_change(self):
+        self.results.queue_size.append(len(self.queue.items))  # Track queue size
+        self.results.queue_change_time.append(self.env.now)
 
 class DepartmentPS(Department):
     """Department with PS (Processor Sharring) processing."""
@@ -87,10 +111,11 @@ class DepartmentPS(Department):
 
                         if remaining_service_time <= 0:
                             self.active_clients.remove(client)
+                            print(f"{client.client_name} processed  by PS in {self.env.now - client.last_wait} seconds")
+                            client.last_wait = 0
                             self.env.process(self.route._route_client(client))
-
-                        
-
+                            self._register_processed_clients()
+                            self._register_queue_change()
                         consultant.busy = False
 
             yield self.env.timeout(0.1)  # Małe opóźnienie między iteracjami
@@ -101,7 +126,6 @@ class DepartmentPS(Department):
         self.active_clients.append(client)
 
 class DepartmentFIFO(Department):
-    """Department with FIFO (First In, First Out) processing."""
     def __init__(self, env, name):
         super().__init__(env, name)
 
@@ -113,10 +137,13 @@ class DepartmentFIFO(Department):
             consultant = yield from self._get_available_consultant()
 
             if consultant:
-                self.env.process(consultant._handle_call(client, self.env.now - client.arrival_time))
-                self.env.process(self.route._route_client(client))  # reroute client after processing
+                self.env.process(consultant._handle_call(client))
+                self.env.process(self.route._route_client(client))  # Reroute client after processing
+                self._register_processed_clients()
+                self._register_queue_change()
             else:
                 print(f"No available consultant for {client.client_name}, please wait.")
+
 
 class DepartmentLIFOPR(Department):
     """Department with lifo with priorities."""
@@ -132,14 +159,14 @@ class DepartmentLIFOPR(Department):
 
                 consultant = yield from self._get_available_consultant()
 
-                if consultant: 
+                if consultant:
                     self.env.process(
-                        consultant._handle_call(client, self.env.now - client.arrival_time)
+                        consultant._handle_call(client)
                     )
                     self.env.process(self.route._route_client(client))  # Re-route the client after processing
-                else:
-                    print(f"No available consultant for client {client.client_id}, please wait.")
-            yield self.env.timeout(0.1)  # small delay before rechecking the queue
+                    self._register_processed_clients()
+                    self._register_queue_change()
+            yield self.env.timeout(0.01)  # small delay before rechecking the queue
 
 class Consultant:
     def __init__(self, env, name, department, processing_time):
@@ -156,16 +183,19 @@ class Consultant:
         self.time_on_calls = 0
         self.time_on_previous_call = 0
 
-    def _handle_call(self, client, wait_time):
+    def _handle_call(self, client):
         """Simulates handling a call by the consultant."""
         self.busy = True
         self.handled_calls += 1
 
         service_time = np.random.exponential(1 / self.processing_time[client.issue_type])
+        wait_time = self.env.now - client.last_wait
+        client.wait_times.append(wait_time)
+        client.last_wait = self.env.now
         if self.loggs:
-            print(f"{self.consultant_name} is handling {client.client_name} for {service_time:.2f} seconds "
+            print(f"{self.department}: {self.consultant_name} is handling {client.client_name} for {service_time:.2f} seconds "
                   f"(Wait time: {wait_time:.2f} seconds)")
-        
+
         yield self.env.timeout(service_time)
         self.time_on_calls += service_time
         self.time_on_previous_call = service_time

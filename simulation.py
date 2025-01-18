@@ -89,6 +89,7 @@ def run_simulation(ps_pt, fifo_pt, lifopr_pt, ps_co, fifo_co, lifopr_co, ps_prob
     # Adjust simulation setup
     env.process(generate_clients(env, clients, arrival_rate, route, logging=True))
     env.run(until=clients*1000)
+    return fifo_department.results, lifopr_department.results, ps_department.results
 
 
 # run_simulation(PS_PROCESSING_TIME, FIFO_PROCESSING_TIME, LIFOPR_PROCESSING_TIME, PS_CONSULTANTS, FIFO_CONSULTANTS, LIFOPR_CONSULTANTS, PS_PROPABILITIES, FIFO_PROPABILITIES, LIFOPR_PROPABILITIES, NUM_CLIENTS, ARRIVAL_RATE)

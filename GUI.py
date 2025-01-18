@@ -8,6 +8,7 @@ from propability_function import compute_propability_of_state
 ps_processing_time_values = {}
 # Main application window
 root = tk.Tk()
+root.geometry("1100x600")
 root.title("Symulacja Sieci Kolejkowej BCMP")
 
 # Expandable Section with Toggle
@@ -154,25 +155,6 @@ def parse_string_var_to_list(string_var, value_type=float):
     """Convert a comma-separated string in a StringVar to a list of values."""
     return [value_type(v.strip()) for v in string_var.get().split(',')]
 
-#TODO wyświetlanie w GUI, to raczej powinno być na sztywno w sensie phases, rates, weights w gui
-ps_processing_time_values = {
-        'normal': {
-            'phases': [0, 1],
-            'rates': [0.035, 0.1],
-            'weights': [0.8, 0.2]
-        },
-        'medium': {
-        'phases': [0, 1, 2],
-        'rates': [0.018, 0.036, 0.054],
-        'weights': [0.2, 0.5, 0.3]
-        },
-        'complicated': {
-            'phases': [0, 1, 2, 3],
-            'rates': [0.008, 0.016, 0.024, 0.032],
-            'weights': [0.1, 0.2, 0.3, 0.4]
-        }
-    }
-
 def handle_simulation():
     ps_processing_time_values = {
         key: {
@@ -218,7 +200,7 @@ def handle_simulation():
     arrival_rate_value = arrival_rate.get()
 
     try:
-        run_simulation(
+        fifo_results, lifopr_results, ps_results = run_simulation(
                 ps_processing_time_values,
                 fifo_processing_time_values,
                 lifopr_processing_time_values,
@@ -231,6 +213,8 @@ def handle_simulation():
                 num_clients_value,
                 arrival_rate_value
             )
+        update_chart(fifo_results, lifopr_results, ps_results)
+
     except Exception as e:
         print(f"Simulation Error: {e}")
 
@@ -247,6 +231,53 @@ ax.set_title("Wyniki symulacji")
 canvas = FigureCanvasTkAgg(fig, master=fig_frame)
 canvas_widget = canvas.get_tk_widget()
 canvas_widget.pack(fill=tk.BOTH, expand=True)
+
+def extend_data(fifo_data, lifopr_data, ps_data):
+    max_time = max(
+        max(fifo_data.processed_clients_time),
+        max(lifopr_data.processed_clients_time),
+        max(ps_data.processed_clients_time),
+        max(fifo_data.queue_change_time),
+        max(lifopr_data.queue_change_time),
+        max(ps_data.queue_change_time)
+    )
+
+    def extend_to_max_time(time_list, value_list, max_time):
+        if time_list[-1] < max_time:
+            # Add the last value at max_time
+            time_list.append(max_time)
+            value_list.append(value_list[-1])
+
+    # Extend the queue data
+    extend_to_max_time(fifo_data.queue_change_time, fifo_data.queue_size, max_time)
+    extend_to_max_time(lifopr_data.queue_change_time, lifopr_data.queue_size, max_time)
+    extend_to_max_time(ps_data.queue_change_time, ps_data.queue_size, max_time)
+
+    # Extend the processed clients data
+    extend_to_max_time(fifo_data.processed_clients_time, fifo_data.processed_clients, max_time)
+    extend_to_max_time(lifopr_data.processed_clients_time, lifopr_data.processed_clients, max_time)
+    extend_to_max_time(ps_data.processed_clients_time, ps_data.processed_clients, max_time)
+
+def update_chart(fifo_data, lifopr_data, ps_data):
+    extend_data(fifo_data, lifopr_data, ps_data)
+
+    ax.clear()  # Clear the chart
+    # Plot queue size
+    ax.plot(fifo_data.queue_change_time, fifo_data.queue_size, label="FIFO Queue Size", color="red", linestyle="--")
+    ax.plot(lifopr_data.queue_change_time, lifopr_data.queue_size, label="LIFOPR Queue Size", color="green", linestyle="--")
+    # ax.plot(ps_data.queue_change_time, ps_data.queue_size, label="PS Queue Size", color="orange")
+
+    # Plot processed clients
+    ax.plot(fifo_data.processed_clients_time, fifo_data.processed_clients, label="FIFO Processed Clients", color="red")
+    ax.plot(lifopr_data.processed_clients_time, lifopr_data.processed_clients, label="LIFOPR Processed Clients", color="green")
+    ax.plot(ps_data.processed_clients_time, ps_data.processed_clients, label="PS Processed Clients", color="orange")
+
+    ax.set_title("Wyniki symulacji")
+    ax.set_xlabel("Simulation Time")
+    ax.set_ylabel("Count")
+    ax.legend()
+
+    canvas.draw()
 
 # Panel wyników
 results_frame = tk.Frame(root)
