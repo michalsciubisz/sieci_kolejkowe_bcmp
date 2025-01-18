@@ -132,17 +132,17 @@ class DepartmentFIFO(Department):
     def _process_clients(self):
         """Process clients in FIFO order."""
         while True:
-            client = yield self.queue.get()
+            client = yield self.queue.get()  # Pobierz klienta z kolejki
+            self.env.process(self._assign_consultant(client))  # Przetwarzaj osobno każdego klienta
 
-            consultant = yield from self._get_available_consultant()
-
-            if consultant:
-                self.env.process(consultant._handle_call(client))
-                self.env.process(self.route._route_client(client))  # Reroute client after processing
-                self._register_processed_clients()
-                self._register_queue_change()
-            else:
-                print(f"No available consultant for {client.client_name}, please wait.")
+    def _assign_consultant(self, client):
+        """Find consultant and handle client separately."""
+        consultant = yield from self._get_available_consultant()
+        if consultant:
+            yield self.env.process(consultant._handle_call(client))  # Przetwarzanie w osobnym procesie
+            self.env.process(self.route._route_client(client))  # Reroute client after processing
+            self._register_processed_clients()
+            self._register_queue_change()
 
 
 class DepartmentLIFOPR(Department):
@@ -160,7 +160,7 @@ class DepartmentLIFOPR(Department):
                 consultant = yield from self._get_available_consultant()
 
                 if consultant:
-                    self.env.process(
+                    yield self.env.process(
                         consultant._handle_call(client)
                     )
                     self.env.process(self.route._route_client(client))  # Re-route the client after processing
@@ -199,16 +199,17 @@ class Consultant:
         client.last_wait = self.env.now
         self.time_on_calls += service_time
         self.time_on_previous_call = service_time
-        self._take_break()
+        self.env.process(self._take_break())
         self.busy = False
 
     def _take_break(self):
         """Simulates a break between calls."""
         self.break_duration = max(self.time_on_previous_call / 3, 1)  # at least one-minute break
         if self.loggs:
-            print(f"{self.consultant_name} is taking a break for {self.break_duration:.2f} seconds")
+            print(f"{self.department}: {self.consultant_name} is taking a break for {self.break_duration:.2f} seconds")
         yield self.env.timeout(self.break_duration)
         self.time_on_breaks += self.break_duration
+
 
 class Route:
     def __init__(self, ps_department, fifo_department, lifopr_department):
