@@ -3,6 +3,8 @@ import simpy as sp
 import numpy as np
 import random
 
+all_clients = []
+all_consultants = []
 
 class Results:
     def __init__(self):
@@ -51,6 +53,7 @@ class Department:
         for idx in range(1, number_of_consultants + 1):
             consultant_name = f"Consultant {idx}"
             consultant = Consultant(self.env, consultant_name, self.department_name, self.processing_time)
+            all_consultants.append(consultant)
             self.consultants.append(consultant)
 
     def _add_client(self, client):
@@ -74,6 +77,15 @@ class Department:
     def _register_queue_change(self):
         self.results.queue_size.append(len(self.queue.items))  # Track queue size
         self.results.queue_change_time.append(self.env.now)
+
+    def _assign_client_to_consultant(self, client):
+        """Assign a consultant to a client and process the call."""
+        consultant = yield from self._get_available_consultant()
+        if consultant:
+            yield self.env.process(consultant._handle_call(client))
+            self.env.process(self.route._route_client(client))
+            self._register_processed_clients()
+            self._register_queue_change()
 
 class DepartmentPS(Department):
     """Department with PS (Processor Sharring) processing."""
@@ -133,17 +145,7 @@ class DepartmentFIFO(Department):
         """Process clients in FIFO order."""
         while True:
             client = yield self.queue.get()  # Pobierz klienta z kolejki
-            self.env.process(self._assign_consultant(client))  # Przetwarzaj osobno każdego klienta
-
-    def _assign_consultant(self, client):
-        """Find consultant and handle client separately."""
-        consultant = yield from self._get_available_consultant()
-        if consultant:
-            yield self.env.process(consultant._handle_call(client))  # Przetwarzanie w osobnym procesie
-            self.env.process(self.route._route_client(client))  # Reroute client after processing
-            self._register_processed_clients()
-            self._register_queue_change()
-
+            yield self.env.process(self._assign_client_to_consultant(client))  # Przetwarzaj osobno każdego klienta
 
 class DepartmentLIFOPR(Department):
     """Department with lifo with priorities."""
@@ -151,22 +153,12 @@ class DepartmentLIFOPR(Department):
         super().__init__(env, name)
 
     def _process_clients(self):
-        """Process clients with LIFO and priority preemption."""
         while True:
             if len(self.queue.items) > 0:
-                self.queue.items.sort(key=lambda c: c.priority, reverse=True)  # sort by priority
+                self.queue.items.sort(key=lambda c: c.priority, reverse=True)
                 client = self.queue.items.pop()
-
-                consultant = yield from self._get_available_consultant()
-
-                if consultant:
-                    yield self.env.process(
-                        consultant._handle_call(client)
-                    )
-                    self.env.process(self.route._route_client(client))  # Re-route the client after processing
-                    self._register_processed_clients()
-                    self._register_queue_change()
-            yield self.env.timeout(0.01)  # small delay before rechecking the queue
+                yield self.env.process(self._assign_client_to_consultant(client))
+            yield self.env.timeout(0.01)
 
 class Consultant:
     def __init__(self, env, name, department, processing_time):
@@ -190,7 +182,7 @@ class Consultant:
 
         service_time = np.random.exponential(1 / self.processing_time[client.issue_type])
         wait_time = self.env.now - client.last_wait
-        client.wait_times.append(wait_time)
+        client.wait_times.append((wait_time, self.department))
         if self.loggs:
             print(f"{self.department}: {self.consultant_name} is handling {client.client_name} for {service_time:.2f} seconds "
                   f"(Wait time: {wait_time:.2f} seconds). curr time {self.env.now}")
@@ -306,6 +298,7 @@ def client_arrival(env, client_id, route, logging=False):
     issue_type = random.choice(issue_types)
     client = Client(client_id, issue_type, env.now)
     client.issue_history.append(issue_type)
+    all_clients.append(client)
 
     if logging:
         print(f"Client {client_id} arrives with a {issue_type} issue at time {env.now:.2f}.")

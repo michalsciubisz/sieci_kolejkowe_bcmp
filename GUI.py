@@ -200,7 +200,7 @@ def handle_simulation():
     arrival_rate_value = arrival_rate.get()
 
     try:
-        fifo_results, lifopr_results, ps_results = run_simulation(
+        fifo_results, lifopr_results, ps_results, wait_times, consultant_averages = run_simulation(
                 ps_processing_time_values,
                 fifo_processing_time_values,
                 lifopr_processing_time_values,
@@ -214,6 +214,7 @@ def handle_simulation():
                 arrival_rate_value
             )
         update_chart(fifo_results, lifopr_results, ps_results)
+        update_results(fifo_results, lifopr_results, wait_times[0], wait_times[1], consultant_averages)
 
     except Exception as e:
         print(f"Simulation Error: {e}")
@@ -284,6 +285,36 @@ results_frame = tk.Frame(root)
 results_frame.pack(side=tk.RIGHT, fill=tk.BOTH, padx=10, pady=10)
 
 tk.Label(results_frame, text="Wyniki Symulacji", font=("Arial", 14)).pack(anchor=tk.N)
+
+
+def calculate_mean_queue(queue_change_time, queue_size):
+    durations = [queue_change_time[i + 1] - queue_change_time[i] for i in range(len(queue_change_time) - 1)]
+    weighted_sum = sum(size * duration for size, duration in zip(queue_size[:-1], durations))
+    total_time = queue_change_time[-1] - queue_change_time[0]
+    return weighted_sum / total_time if total_time > 0 else 0
+
+def update_results(fifo_data, lifopr_data, lifo_wait_times, fifo_wait_times, averages):
+    # Clear previous results
+    for widget in results_frame.winfo_children():
+        widget.destroy()
+
+    fifo_mean_queue = calculate_mean_queue(fifo_data.queue_change_time, fifo_data.queue_size)
+    lifopr_mean_queue = calculate_mean_queue(lifopr_data.queue_change_time, lifopr_data.queue_size)
+
+    tk.Label(results_frame, text="Wyniki Symulacji", font=("Arial", 14)).pack(anchor=tk.N, pady=5)
+    tk.Label(results_frame, text=f"FIFO Mean Queue: {fifo_mean_queue:.2f}", font=("Arial", 10)).pack(anchor=tk.W)
+    tk.Label(results_frame, text=f"LIFOPR Mean Queue: {lifopr_mean_queue:.2f}", font=("Arial", 10)).pack(anchor=tk.W)
+    tk.Label(results_frame, text=f"FIFO Mean Wait Time For Clients: {fifo_wait_times:.2f}",
+             font=("Arial", 10)).pack(anchor=tk.W)
+    tk.Label(results_frame, text=f"LIFOPR Mean Wait Time For Clients: {lifo_wait_times:.2f}", font=("Arial", 10)).pack(anchor=tk.W)
+    tk.Label(results_frame, text=f"FIFO Mean Consultant Call Time: {averages['fifo']['avg_call_time']:.2f}",
+             font=("Arial", 10)).pack(anchor=tk.W)
+    tk.Label(results_frame, text=f"LIFOPR Mean Consultant Call Time: {averages['lifopr']['avg_call_time']:.2f}",
+             font=("Arial", 10)).pack(anchor=tk.W)
+    tk.Label(results_frame, text=f"FIFO Mean Consultant Break Time: {averages['fifo']['avg_break_time']:.2f}",
+             font=("Arial", 10)).pack(anchor=tk.W)
+    tk.Label(results_frame, text=f"LIFOPR Mean Consultant Break Time: {averages['lifopr']['avg_break_time']:.2f}",
+             font=("Arial", 10)).pack(anchor=tk.W)
 
 # Add Section for Probability Computation
 probability_section = tk.Frame(params_frame)

@@ -89,7 +89,60 @@ def run_simulation(ps_pt, fifo_pt, lifopr_pt, ps_co, fifo_co, lifopr_co, ps_prob
     # Adjust simulation setup
     env.process(generate_clients(env, clients, arrival_rate, route, logging=True))
     env.run(until=clients*1000)
-    return fifo_department.results, lifopr_department.results, ps_department.results
 
+    return fifo_department.results, lifopr_department.results, ps_department.results, calculate_average_wait_times(all_clients), calculate_average_consultant_times(all_consultants)
+
+def calculate_average_wait_times(clients):
+    lifo_total = 0
+    fifo_total = 0
+    lifo_count = 0
+    fifo_count = 0
+
+    for client in clients:
+        for wait_time, department_type in client.wait_times:
+            if department_type == 'lifopr':
+                lifo_total += wait_time
+                lifo_count += 1
+            elif department_type == 'fifo':
+                fifo_total += wait_time
+                fifo_count += 1
+
+    lifo_mean = lifo_total / lifo_count if lifo_count > 0 else 0
+    fifo_mean = fifo_total / fifo_count if fifo_count > 0 else 0
+
+    return lifo_mean, fifo_mean
+
+
+def calculate_average_consultant_times(consultants):
+    department_times = {
+        'ps': {'call_time': 0, 'break_time': 0, 'count': 0},
+        'fifo': {'call_time': 0, 'break_time': 0, 'count': 0},
+        'lifopr': {'call_time': 0, 'break_time': 0, 'count': 0}
+    }
+
+    # Iterate over each consultant and accumulate time for each department
+    for consultant in consultants:
+        department_name = consultant.department  # Consultant's department
+
+        if department_name in department_times:
+            department_times[department_name]['call_time'] += consultant.time_on_calls
+            department_times[department_name]['break_time'] += consultant.time_on_breaks
+            department_times[department_name]['count'] += 1  # Increment number of consultants in the department
+
+    # Now calculate the average times
+    averages = {}
+    for department, times in department_times.items():
+        if times['count'] > 0:  # Avoid division by zero
+            avg_call_time = times['call_time'] / times['count']
+            avg_break_time = times['break_time'] / times['count']
+        else:
+            avg_call_time = avg_break_time = 0  # If no consultants in the department
+
+        averages[department] = {
+            'avg_call_time': avg_call_time,
+            'avg_break_time': avg_break_time
+        }
+
+    return averages
 
 # run_simulation(PS_PROCESSING_TIME, FIFO_PROCESSING_TIME, LIFOPR_PROCESSING_TIME, PS_CONSULTANTS, FIFO_CONSULTANTS, LIFOPR_CONSULTANTS, PS_PROPABILITIES, FIFO_PROPABILITIES, LIFOPR_PROPABILITIES, NUM_CLIENTS, ARRIVAL_RATE)
