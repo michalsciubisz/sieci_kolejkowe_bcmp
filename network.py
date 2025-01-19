@@ -185,7 +185,7 @@ class Consultant:
         client.wait_times.append((wait_time, self.department))
         if self.loggs:
             print(f"{self.department}: {self.consultant_name} is handling {client.client_name} for {service_time:.2f} seconds "
-                  f"(Wait time: {wait_time:.2f} seconds). curr time {self.env.now}")
+                  f"(Wait time: {wait_time:.2f} seconds).")
 
         yield self.env.timeout(service_time)
         client.last_wait = self.env.now
